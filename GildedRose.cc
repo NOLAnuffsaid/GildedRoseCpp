@@ -37,63 +37,72 @@ enum SpecialItemType {
     Conjured = 3
 };
 
-std::map<std::string, SpecialItemType> itemDict = {
-{"Aged Brie", SpecialItemType::Brie},
-{"Backstage passes to a TAFKAL80ETC concert", SpecialItemType::Passes},
-{"Sulfuras, Hand of Ragnaros", SpecialItemType::Sulfuras},
-{"Conjured", SpecialItemType::Conjured}
+class ItemDecorator {
+public:
+    explicit ItemDecorator(Item& item) : item{item} {};
+    ~ItemDecorator() = default;
+
+    void update() {
+        updateItemQuality();
+        item.sellIn--;
+    }
+
+private:
+    Item& item;
+
+    std::map<std::string, SpecialItemType> itemDict = {
+        {"Aged Brie", SpecialItemType::Brie},
+        {"Backstage passes to a TAFKAL80ETC concert", SpecialItemType::Passes},
+        {"Sulfuras, Hand of Ragnaros", SpecialItemType::Sulfuras},
+        {"Conjured", SpecialItemType::Conjured}
+    };
+
+    void updateItemQuality() {
+        switch(itemDict[item.name]) {
+            case SpecialItemType::Brie:
+                updateBrieQuality();
+                return;
+            case SpecialItemType::Passes:
+                updatePassesQuality();
+                return;
+            case SpecialItemType::Conjured:
+                updateConjuredQuality();
+                return;
+            case SpecialItemType::Sulfuras:
+                return;
+            default:
+                item.quality -= 1;
+                return;
+        }
+    }
+
+    void updateBrieQuality() {
+        item.quality = item.quality == 50 ? item.quality : item.quality + 1;
+    }
+
+    int determinePassDecreaseRate( int a ) {
+        if ( a > 10 ) { return 1; }
+        else if (( a <= 10 ) && ( a > 5 )) { return 2; }
+        else if ( (a <= 5) && (a > 0) ) { return 3; }
+        else { return 0; }
+    }
+
+    int getUpdatedQuality() {
+        int increaseBy = determinePassDecreaseRate(item.sellIn);
+        int updatedQuality = item.quality + increaseBy;
+
+        return updatedQuality > 50 ? 50 : updatedQuality;
+    }
+
+    void updatePassesQuality() {
+        item.quality = item.sellIn <= 0 ? 0 : getUpdatedQuality();
+    }
+
+    void updateConjuredQuality() {
+        item.quality = item.quality == 0 ? item.quality : item.quality - 2;
+    }
 };
 
-void updateBrieQuality(Item& item) {
-    item.quality = item.quality == 50 ? item.quality : item.quality + 1;
-}
-
-int determinePassDecreaseRate( int a ) {
-    if ( a > 10 ) { return 1; }
-    else if (( a <= 10 ) && ( a > 5 )) { return 2; }
-    else if ( (a <= 5) && (a > 0) ) { return 3; }
-    else { return 0; }
-}
-
-int getUpdatedQuality(const Item item) {
-    int increaseBy = determinePassDecreaseRate(item.sellIn);
-    int updatedQuality = item.quality + increaseBy;
-
-    return updatedQuality > 50 ? 50 : updatedQuality;
-}
-
-void updatePassesQuality(Item& item) {
-    item.quality = item.sellIn <= 0 ? 0 : getUpdatedQuality(item);
-}
-
-void updateConjuredQuality(Item& item) {
-    item.quality = item.quality == 0 ? item.quality : item.quality - 2;
-}
-
-void updateItemQuality(Item& item) {
-    switch(itemDict[item.name]) {
-        case SpecialItemType::Brie:
-            updateBrieQuality(item);
-            return;
-        case SpecialItemType::Passes:
-            updatePassesQuality(item);
-            return;
-        case SpecialItemType::Conjured:
-            updateConjuredQuality(item);
-            return;
-        case SpecialItemType::Sulfuras:
-            return;
-        default:
-            item.quality -= 1;
-            return;
-    }
-}
-
-void updateItem(Item& item) {
-    updateItemQuality(item);
-    item.sellIn--;
-}
-
 void GildedRose::updateQuality() {
-    std::for_each(items.begin(), items.end(), updateItem);
+    std::for_each(items.begin(), items.end(), [](Item& item){ ItemDecorator(item).update(); });
 }
